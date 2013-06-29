@@ -10,12 +10,15 @@ config_vars = ["hostName", "authPort", "sharedSecret", "retryCount", "socketTime
 
 config = utils.parseConfig(config_file, config_vars)
     
-c = client(config['hostName'], config['authPort'], "config['sharedSecret']",
+c = client(config['hostName'], config['authPort'], config['sharedSecret'],
             config['retryCount'], config['socketTimeout'])
 
 
-user_name = raw_input("user name: ")
-password = getpass.getpass("password: ")
+# user_name = raw_input("user name: ")
+# password = getpass.getpass("password: ")
+
+user_name  = "User"
+password = "PasswordX"
 
 result = c.authorize(user_name, password)
 print result
