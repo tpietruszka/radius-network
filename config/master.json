@@ -1,0 +1,8 @@
+{
+    "hostName": "localhost",
+	"sharedSecret": "elkaSecret",
+	"authPort": 1816,
+	"socketTimeout": 2000,
+	"retryCount": 3,
+	"databasePath": "database.csv"
+}

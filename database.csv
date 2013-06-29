@@ -1,0 +1,8 @@
+UserName,UserPassword,Permission
+Jolanta,Kwasek,accept
+Chang,chinaRules,accept
+xyz,kopytko,accept
+User,PasswordX,accept
+Nowy,haslo,reject
+Test,test,reject
+Oleg,kasslerbraten,accept

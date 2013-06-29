@@ -1,0 +1,11 @@
+{
+    "hostName": "localhost",
+	"slaveHostName1": "localhost",
+	"slaveHostName2": "localhost",
+	"authPort": 1812,
+	"slavePort1": 1814,
+	"slavePort2": 1816,
+	"sharedSecret": "elkaSecret",
+	"socketTimeout": 2000,
+	"retryCount": 3,
+}
