@@ -4,7 +4,7 @@ import threading
 import signal
 from jinja2._stringdefs import No
 import errno
-from Queue import Queue
+from Queue import Queue, Empty
 
 class Server:
     def __init__(self, listening_port, shared_secret):
@@ -25,7 +25,7 @@ class Server:
         """
         if self._server_socket == None:
             self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._server_socket.bind(("127.0.0.1", self.listening_port))
+            self._server_socket.bind(('', self.listening_port))
 #             self._server_socket.listen(self.max_request_queue) 
         
     def _socket_close(self):
@@ -59,8 +59,6 @@ class Server:
                 if code == errno.EINTR:
                     print "socket closed via SIGINT"
                 else: raise
-                    
-            
         
         self._socket_close()
         print "all threads finished"
@@ -75,9 +73,28 @@ class Server:
         
     def handle_request(self):
         while self.running:
-            (packet, address) = self.request_queue.get(True, self.listening_timeout)
-            print address
-            self.request_queue.task_done()
+            try:
+                (packet, address) = self.request_queue.get(True, self.listening_timeout)
+                self.packet_show(packet)
+                self.request_queue.task_done()
+            except Empty:
+                pass
         return
             
+    def packet_show(self, packet):
+        print "code:", ord(packet[0])
+        print "id: ", ord(packet[1])
+        print "length: ", packet[3:4],
+#         print "authenticator", packet[]
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         

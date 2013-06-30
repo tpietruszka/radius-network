@@ -4,6 +4,15 @@ try:
 except ImportError:
     from md5 import new as md5
 
+class Packet:
+    def __init__(self, code, id, authenticator, attributes):
+        self.code = code
+        self.id = id
+        self.authenticator = authenticator
+        self.attributes = attributes # a list of tuples (code, length, value)
+        
+    def to_string(self):
+        pass
 
 def encrypt(secret, authenticator, password):
     """ Encrypt the password using Client's "Shared secret" and given authenticator"""
@@ -41,4 +50,6 @@ def decrypt(secret, authenticator, encrypted):
         # remove padding 0's 
     while result.endswith(chr(0)):
         result = result[:-1]
-    return result        
+    return result   
+
+     

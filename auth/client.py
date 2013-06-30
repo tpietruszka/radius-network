@@ -60,7 +60,8 @@ class Client:
             authenticator,
             1, len(user_name) + 2, user_name,
             2, len(encpass) + 2, encpass)
-
+        print len(user_name) + len(encpass) + 24
+        print len(msg)
         for i in range(0, self.retry_count):
             
             self._socket.sendto(msg, (self.host, self.port))
