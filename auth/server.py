@@ -4,15 +4,17 @@ import threading
 import signal
 from jinja2._stringdefs import No
 import errno
+from Queue import Queue
 
 class Server:
     def __init__(self, listening_port, shared_secret):
         self.listening_port = listening_port
         self.shared_secret = shared_secret
-        self.max_request_queue = 5
         self._server_socket = None
-        self._thread_list = [] 
+        self.request_queue = Queue()
         self.running = False
+        self.listening_timeout = 2 # how often to check if worker threads should terminate [s]
+        self.thread_count = 2 # number of worker threads
     
     def __del__(self):
         self._socket_close()
@@ -40,25 +42,25 @@ class Server:
         
         signal.signal(signal.SIGINT, self.stop)
 #         signal.siginterrupt(signal.SIGINT, False)
-        
+
+        #initializing worker threads
+        for i in range(0, self.thread_count):
+            t = threading.Thread(target=self.handle_request)
+            t.start()
+            
+        #beginning to receive requests
         while self.running: # can be changed with SIGINT
             try:
                 # TODO: ustalic maksymalny rozmiar pakietu
                 (received_packet, address) = self._server_socket.recvfrom(4096)
                 print "received sth"
-                t = threading.Thread(target=self.handle_request, args=((received_packet, address)))
-                self._thread_list.append(t)
-                t.run()
-                print self._thread_list
+                self.request_queue.put((received_packet, address))
             except socket.error as (code, msg):
                 if code == errno.EINTR:
                     print "socket closed via SIGINT"
                 else: raise
                     
             
-        for t in self._thread_list:
-            if t.is_alive():
-                t.join()
         
         self._socket_close()
         print "all threads finished"
@@ -71,8 +73,11 @@ class Server:
         
         
         
-    def handle_request(self, packet, address):
-        print "handlin"
-        print packet
-        return 0
+    def handle_request(self):
+        while self.running:
+            (packet, address) = self.request_queue.get(True, self.listening_timeout)
+            print address
+            self.request_queue.task_done()
+        return
+            
         
