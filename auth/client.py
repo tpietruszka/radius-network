@@ -5,20 +5,17 @@ import random
 import select
 import socket
 import struct
-try:
-    from hashlib import md5
-except ImportError:
-    from md5 import new as md5
+from auth import packet
+from hgext.inotify.server import TimeoutException
 
-
-class client:
+class Client:
     def __init__(self, host, port, secret, retry_count, timeout):
         self.host = host
         self.port = port
         
         self.secret = str(secret)
         self.retry_count = retry_count
-        self.timeout = float(timeout) / 1000
+        self.timeout = float(timeout)/1000
         
         self._socket = None
         
@@ -29,7 +26,7 @@ class client:
     def _socket_open(self):
         if self._socket == None:
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._socket.connect((self.host, self.port))
+#             self._socket.connect((self.host, self.port))
 
     def _socket_close(self):
         if self._socket:
@@ -46,85 +43,51 @@ class client:
     
     
     
-    def encrypt(self, authenticator, password):
-        """ Encrypt the password using client's "Shared secret" and given authenticator"""
-        # pad the password with zeros to multiple of 16 octets 
-        password += chr(0) * (16 - (len(password) % 16))
-        if len(password) > 128:
-            raise Exception('Password exceeds maximun of 128 bytes')
-        result = ''
-        last = authenticator
-        while password:
-            # md5sum the shared secret with the authenticator,
-            # after the first iteration, the authenticator is the previous
-            # result of our encryption.
-            hashed = md5(self.secret + last).digest()
-            for i in range(16):
-                result += chr(ord(hashed[i]) ^ ord(password[i]))
-            # The next iteration will act upon the next 16 octets of the password
-            # and the result of our xor operation above. We will set last to
-            # the last 16 octets of our result (the xor we just completed). And
-            # remove the first 16 octets from the password.
-            last, password = result[-16:], password[16:]
-        return result
-    
-    def decrypt(self, authenticator, encrypted):
-        """ Decrypt the password using client's "Shared secret" and given authenticator"""
-        result = ''
-        last = authenticator
-        while encrypted:
-            hashed = md5(self.secret + last).digest()
-            for i in range(16):
-                result += chr(ord(hashed[i]) ^ ord(encrypted[i]))
-            last = encrypted[:16]
-            encrypted = encrypted[16:]
-            
-            #remove padding 0's 
-        while result.endswith(chr(0)):
-            result = result[:-1]
-        return result        
-    
-    
     def authorize(self, user_name, password):
-        try:
-            self._socket_open()
-            id = random.randint(0, 255)
+        response = None
+        self._socket_open()
+         
+        id = random.randint(0, 255)
 
-            authenticator = self.generate_authenticator()
+        authenticator = self.generate_authenticator()
 
-            encpass = self.encrypt(authenticator, password)
+        encpass = packet.encrypt(self.secret, authenticator, password)
 
-            msg = struct.pack('!B B H 16s B B %ds B B %ds' \
-                    % (len(user_name), len(encpass)), \
-                1, id,
-                len(user_name) + len(encpass) + 24,  # Length of entire message
-                authenticator,
-                1, len(user_name) + 2, user_name,
-                2, len(encpass) + 2, encpass)
+        msg = struct.pack('!B B H 16s B B %ds B B %ds' \
+                % (len(user_name), len(encpass)), \
+            1, id,
+            len(user_name) + len(encpass) + 24,  # Length of entire message
+            authenticator,
+            1, len(user_name) + 2, user_name,
+            2, len(encpass) + 2, encpass)
 
-            for i in range(0, self.retry_count):
-                self._socket.send(msg)
+        for i in range(0, self.retry_count):
+            
+            self._socket.sendto(msg, (self.host, self.port))
+            t = select.select([self._socket, ], [], [], self.timeout)
+            if t[0]:
+                response = self._socket.recv(4096)
+            else: 
+                # timeout detected
+                print "attempt ", i+1, " - timed out"
+                continue
 
-                t = select.select([self._socket, ], [], [], self.timeout)
-                if len(t[0]) > 0:
-                    response = self._socket.recv(4096)
-                else: 
-                    # timeout detected
-                    continue
-
-                if ord(response[1]) == id:
-                    break
-                else:
-                    # incorrect id - a response to something else?
-                    print "Response with an incorrect ID received - ignored"
-                    continue
-
-                
-            self._socket_close()
-            if ord(response[0]) == CodeAccessAccept:
-                return 1    
+            if ord(response[1]) == id:
+                break
             else:
-                return 0
+                # incorrect id - a response to something else?
+                print "Response with an incorrect ID received - ignored"
+                continue
+    
+        self._socket_close()
+        
+        if response == None:
+            raise TimeoutError("Timed out after " + str(self.retry_count) + " attempts")
+        
+        if ord(response[0]) == CodeAccessAccept:
+            return 1    
+        else:
+            return 0
             # TODO: wprowadzić walidację pakietów - gdy współpracujące serwery będą to obsługiwać
             # # Verify the packet is not a cheap forgery or corrupt
                 # checkauth = response[4:20]
@@ -132,10 +95,9 @@ class client:
                     # + self._secret).digest()
                 # if m <> checkauth:
                     # continue
-        except socket.error, x:  # SocketError
-            try: self._socket_close()
-            except: pass
-            raise RuntimeError("socket error" + str(x))
+#         except socket.error, x:  # SocketError
+#             try: self._socket_close()
+#             except: pass
+#             raise RuntimeError("socket error" + str(x))
 
-        raise TimeoutError
         
