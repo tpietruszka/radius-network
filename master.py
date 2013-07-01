@@ -9,5 +9,5 @@ config_vars = ["hostName", "sharedSecret", "authPort", "socketTimeout", "databas
 c = utils.parseConfig(config_file, config_vars)
 
 
-s = MasterServer(c['hostName'], c['authPort'], "c['sharedSecret']", c['socketTimeout'], c['databasePath'])
+s = MasterServer(c['hostName'], c['authPort'], c['sharedSecret'], c['socketTimeout'], c['databasePath'])
 s.run()

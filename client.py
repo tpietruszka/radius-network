@@ -14,25 +14,16 @@ config = utils.parseConfig(config_file, config_vars)
 c = Client(config['hostName'], config['authPort'], config['sharedSecret'],
             config['retryCount'], config['socketTimeout'])
 
-
-# testy (de)szyfrowania
-# password = str("0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF")
-# authenticator = c.generate_authenticator()
-# secret = "elkaSecret"
-# encrypted = packet.encrypt(secret, authenticator, password)
-# print encrypted
-# decrypted = packet.decrypt(secret, authenticator, encrypted)
-# print decrypted
-
-# user_name = raw_input("user name: ")
-# password = getpass.getpass("password: ")
-
-user_name  = "User"
-password = "Password"
+user_name = raw_input("user name: ")
+password = getpass.getpass("password: ")
 
 try:
-    result = c.authorize(user_name, password)
-    print result
+    (authorized, message) = c.authorize(user_name, password)
+    if authorized: print "access GRANTED" 
+    else: print "access DENIED"
+    if(len(message)> 0):
+        print message
+    
 except TimeoutError as e:
     print str(e)
 

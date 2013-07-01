@@ -7,5 +7,5 @@
 	"slavePort2": 1816,
 	"sharedSecret": "elkaSecret",
 	"socketTimeout": 2000,
-	"retryCount": 3,
+	"retryCount": 3
 }

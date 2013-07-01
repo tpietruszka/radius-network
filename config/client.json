@@ -2,6 +2,6 @@
     "hostName": "localhost",
 	"sharedSecret": "elkaSecret",
 	"authPort": 1812,
-	"socketTimeout": 7000,
+	"socketTimeout": 3000,
 	"retryCount": 3
 }
