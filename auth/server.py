@@ -98,7 +98,7 @@ class Server:
         sends an anser afterwards (or not, if NoAnswerException was catched)
         """  
         
-        print type(self).__name__, " - authorization requested"
+        print "\n\n\n\n", type(self).__name__, " - authorization requested"
         request = Packet.from_bytestring(raw_packet)
         try:
             user_name = request.attributes[ATTRIBUTE_KEYS['User-Name']]
