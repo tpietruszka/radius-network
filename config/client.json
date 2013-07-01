@@ -1,7 +1,7 @@
 {
     "hostName": "localhost",
 	"sharedSecret": "elkaSecret",
-	"authPort": 1816,
-	"socketTimeout": 3000,
+	"authPort": 1812,
+	"socketTimeout": 7000,
 	"retryCount": 3
 }

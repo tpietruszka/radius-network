@@ -1,0 +1,9 @@
+UserName,UserPassword,Permission
+user3,pass3,accept
+user4,pass4,accept
+user5,pass5,accept
+user6,pass6,reject
+user7,pass7,accept
+user8,pass8,accept
+user9,pass9,accept
+user10,pass10,reject

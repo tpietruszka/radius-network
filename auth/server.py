@@ -2,18 +2,29 @@
 import socket
 import threading
 import signal
-from jinja2._stringdefs import No
 import errno
 from Queue import Queue, Empty
+from auth.packet import Packet, decrypt
+import abc
+from auth import ATTRIBUTE_KEYS, CodeAccessAccept, CodeAccessReject
+from auth.database import Database, UserUnknownException, WrongPasswordException,\
+    AccessRestrictedException
+import auth
 
 class Server:
-    def __init__(self, listening_port, shared_secret):
+    """ Abstract class of a radius server, 
+    base classess should implement rules of checking validity of user's password
+    """
+    __metaclass__ = abc.ABCMeta
+        
+    def __init__(self, host_name, listening_port, shared_secret, socket_timeout):
+        self.host_name = host_name
         self.listening_port = listening_port
-        self.shared_secret = shared_secret
+        self.shared_secret = str(shared_secret)
         self._server_socket = None
         self.request_queue = Queue()
         self.running = False
-        self.listening_timeout = 2 # how often to check if worker threads should terminate [s]
+        self.timeout = float(socket_timeout)/1000 # how often to check if worker threads should terminate [s]
         self.thread_count = 2 # number of worker threads
     
     def __del__(self):
@@ -25,8 +36,7 @@ class Server:
         """
         if self._server_socket == None:
             self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._server_socket.bind(('', self.listening_port))
-#             self._server_socket.listen(self.max_request_queue) 
+            self._server_socket.bind((self.host_name, self.listening_port))
         
     def _socket_close(self):
         if self._server_socket:
@@ -53,7 +63,6 @@ class Server:
             try:
                 # TODO: ustalic maksymalny rozmiar pakietu
                 (received_packet, address) = self._server_socket.recvfrom(4096)
-                print "received sth"
                 self.request_queue.put((received_packet, address))
             except socket.error as (code, msg):
                 if code == errno.EINTR:
@@ -72,25 +81,80 @@ class Server:
         
         
     def handle_request(self):
+        """Main loop of each worker thread - get a message from queue, handle it, mark as done"""
         while self.running:
             try:
-                (packet, address) = self.request_queue.get(True, self.listening_timeout)
-                self.packet_show(packet)
+                (packet, address) = self.request_queue.get(True, self.timeout)
+                self.respond(packet, address)
+                
                 self.request_queue.task_done()
             except Empty:
                 pass
         return
-            
+    
+    def respond(self, raw_packet, client_address):
+        print "Authorization requested"
+        request = Packet.from_bytestring(raw_packet)
+        try:
+            user_name = request.attributes[ATTRIBUTE_KEYS['User-Name']]
+            print "user name: ", user_name
+            encrypted_password = request.attributes[ATTRIBUTE_KEYS['User-Password']]
+        except KeyError as e:
+            print "Invalid packet - no credentials ", e
+            return
+        password = decrypt(self.shared_secret, request.authenticator, encrypted_password)
+        authorized, reply_message = self.verify(user_name, password, raw_packet)
+        
+        
+        if authorized:
+            reply_code = CodeAccessAccept
+        else:
+            reply_code = CodeAccessReject
+        
+        attributes = dict()
+        if reply_message:
+            attributes[ATTRIBUTE_KEYS['Reply-Message']] = reply_message    
+                
+        response_packet = Packet(reply_code, request.id, request.authenticator, attributes)
+        response = response_packet.to_bytestring()
+        self._server_socket.sendto(response, client_address)
+        
+        
+    @abc.abstractmethod  
+    def verify(self, user_name, password, raw_packet):
+        """Each base class should implement custom users verification rules
+        returns (bool authorized, string reply_message)
+        throws NoAnswerException if no answert should be sent
+        """
+        
     def packet_show(self, packet):
+        """debugging purpose only, shows basic packet info"""
         print "code:", ord(packet[0])
         print "id: ", ord(packet[1])
         print "length: ", packet[3:4],
-#         print "authenticator", packet[]
         
         
+
+
+class MasterServer(Server):
+    """Simplest server - verification based on it's own database """
+    
+    def __init__(self, host_name, listening_port, shared_secret, timeout, database):
+        super(MasterServer, self).__init__(host_name, listening_port, shared_secret, timeout)
+        self.database = Database(database)
         
+    def verify(self, user_name, password, raw_packet):
+        authorized = False
+        reply_message = ""
+        try: 
+            authorized = self.database.check(user_name, password)
+        except (UserUnknownException, WrongPasswordException, AccessRestrictedException) as e:
+            authorized = False
+            reply_message = e.message
+            
+        return authorized, reply_message
         
-        
+    
         
         
         

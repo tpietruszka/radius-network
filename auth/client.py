@@ -6,7 +6,7 @@ import select
 import socket
 import struct
 from auth import packet
-from hgext.inotify.server import TimeoutException
+from auth.packet import Packet
 
 class Client:
     def __init__(self, host, port, secret, retry_count, timeout):
@@ -52,19 +52,15 @@ class Client:
         authenticator = self.generate_authenticator()
 
         encpass = packet.encrypt(self.secret, authenticator, password)
+        
+        attributes = dict({ATTRIBUTE_KEYS['User-Name']: user_name,
+                           ATTRIBUTE_KEYS['User-Password']: encpass})
 
-        msg = struct.pack('!B B H 16s B B %ds B B %ds' \
-                % (len(user_name), len(encpass)), \
-            1, id,
-            len(user_name) + len(encpass) + 24,  # Length of entire message
-            authenticator,
-            1, len(user_name) + 2, user_name,
-            2, len(encpass) + 2, encpass)
-        print len(user_name) + len(encpass) + 24
-        print len(msg)
+        request = Packet(code = CodeAccessRequest, id = id, authenticator = authenticator, attributes = attributes).to_bytestring()
+        
         for i in range(0, self.retry_count):
             
-            self._socket.sendto(msg, (self.host, self.port))
+            self._socket.sendto(request, (self.host, self.port))
             t = select.select([self._socket, ], [], [], self.timeout)
             if t[0]:
                 response = self._socket.recv(4096)
@@ -85,20 +81,16 @@ class Client:
         if response == None:
             raise TimeoutError("Timed out after " + str(self.retry_count) + " attempts")
         
-        if ord(response[0]) == CodeAccessAccept:
-            return 1    
+        result = Packet.from_bytestring(response)
+        
+        if result.code == CodeAccessAccept:
+            authorized = True    
         else:
-            return 0
-            # TODO: wprowadzić walidację pakietów - gdy współpracujące serwery będą to obsługiwać
-            # # Verify the packet is not a cheap forgery or corrupt
-                # checkauth = response[4:20]
-                # m = md5(response[0:4] + authenticator + response[20:] 
-                    # + self._secret).digest()
-                # if m <> checkauth:
-                    # continue
-#         except socket.error, x:  # SocketError
-#             try: self._socket_close()
-#             except: pass
-#             raise RuntimeError("socket error" + str(x))
-
+            authorized = False
+        
+        try:
+            reply_message = result.attributes[ATTRIBUTE_KEYS['Reply-Message']]
+        except KeyError:
+            reply_message = ""
+        return (authorized, reply_message)
         

@@ -28,7 +28,7 @@ c = Client(config['hostName'], config['authPort'], config['sharedSecret'],
 # password = getpass.getpass("password: ")
 
 user_name  = "User"
-password = "PasswordX"
+password = "Password"
 
 try:
     result = c.authorize(user_name, password)

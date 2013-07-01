@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from auth.server import Server
+from auth.server import MasterServer
+import utils
+
+config_file = "config/master.json"
+config_vars = ["hostName", "sharedSecret", "authPort", "socketTimeout", "databasePath"]
+c = utils.parseConfig(config_file, config_vars)
 
 
-port = 1816
-shared_secret = "elkaSecret"
-
-s = Server(port, shared_secret)
+s = MasterServer(c['hostName'], c['authPort'], "c['sharedSecret']", c['socketTimeout'], c['databasePath'])
 s.run()

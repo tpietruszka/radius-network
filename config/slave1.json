@@ -2,9 +2,9 @@
     "hostName": "localhost",
 	"masterHostName": "localhost",
 	"authPort": 1814,
-	"masterPort": 1816,
+	"masterPort": 1817,
 	"sharedSecret": "elkaSecret",
 	"socketTimeout": 2000,
 	"retryCount": 3,
-	"databasePath": "slave.csv"
+	"databasePath": "dataSets/slave1.csv"
 }
