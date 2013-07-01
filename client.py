@@ -25,6 +25,7 @@ try:
         print message
     
 except TimeoutError as e:
+    print "Connection failed"
     print str(e)
 
 
